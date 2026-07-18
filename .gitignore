@@ -1,0 +1,9 @@
+# NEVER commit a real server.json — it may carry the creator token (encrypt machine only).
+# Buyers get server_url written for them by the rig installer; creators keep theirs local.
+server.json
+
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.DS_Store
