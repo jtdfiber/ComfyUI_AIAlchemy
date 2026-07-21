@@ -10,23 +10,26 @@ from .crypto_node import (
     AlchemyCryptoEncryptEnd,
     AlchemyCryptoDecrypt,
 )
-from .crypto_node_old import AlchemyCryptoOutput, AlchemyCryptoImage
+# Legacy (pre-entitlement) nodes — creator-machine only; not shipped in the public repo.
+try:
+    from .crypto_node_old import AlchemyCryptoOutput, AlchemyCryptoImage
+    _LEGACY = {"AlchemyCryptoOutput": AlchemyCryptoOutput, "AlchemyCryptoImage": AlchemyCryptoImage}
+except ImportError:
+    _LEGACY = {}
 
 NODE_CLASS_MAPPINGS = {
     "AlchemyCryptoEncrypt": AlchemyCryptoEncrypt,
-    "AlchemyCryptoOutput": AlchemyCryptoOutput,
     "AlchemyCryptoRandomSeed": AlchemyCryptoRandomSeed,
-    "AlchemyCryptoImage": AlchemyCryptoImage,
     "AlchemyCryptoEncryptEnd": AlchemyCryptoEncryptEnd,
     "AlchemyCryptoDecrypt": AlchemyCryptoDecrypt,
+    **_LEGACY,
 }
 NODE_DISPLAY_NAME_MAPPINGS = {
     "AlchemyCryptoEncrypt": "AI Alchemy · Encrypt",
     "AlchemyCryptoRandomSeed": "AI Alchemy · Random Seed",
     "AlchemyCryptoEncryptEnd": "AI Alchemy · Encrypt End",
     "AlchemyCryptoDecrypt": "AI Alchemy · Decrypt",
-    "AlchemyCryptoOutput": "AI Alchemy · Output",
-    "AlchemyCryptoImage": "AI Alchemy · Image",
+    **({"AlchemyCryptoOutput": "AI Alchemy · Output", "AlchemyCryptoImage": "AI Alchemy · Image"} if _LEGACY else {}),
 }
 WEB_DIRECTORY = "./js"
 __all__ = ["NODE_CLASS_MAPPINGS", "NODE_DISPLAY_NAMES_MAPPINGS", "WEB_DIRECTORY"]
