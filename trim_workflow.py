@@ -163,9 +163,18 @@ class AlchemyWorkflow:
                     node_id
                 ]
         crypto_bridge_node = self.node_prompt_map[self.crypto_bridge_node_id]
-        for input_name, input_value in crypto_bridge_node.get("inputs", {}).items():
+        # Collect EVERY output routed into the bridge (dynamic input_anything slots), in slot
+        # order -> N Decrypt outputs. Legacy single 'value' input still yields one output.
+        bridge_inputs = crypto_bridge_node.get("inputs", {})
+        def _slot_key(nm):
+            s = str(nm)[len("input_anything"):]
+            return int(s) if s.isdigit() else 0
+        outs = []
+        for input_name in sorted(bridge_inputs, key=_slot_key):
+            input_value = bridge_inputs[input_name]
             if isinstance(input_value, list) and len(input_value) == 2:
-                self.crypto_result["outputs"] = input_value[0], input_value[1]
+                outs.append([input_value[0], input_value[1]])
+        self.crypto_result["outputs"] = outs
         json_result = json.dumps(self.crypto_result, indent=4, ensure_ascii=False)
         save_dir = folder_paths.temp_directory
         with open(os.path.join(save_dir, crypto_file_name), "w", encoding="utf-8") as f:

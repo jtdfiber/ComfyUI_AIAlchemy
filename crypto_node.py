@@ -99,13 +99,35 @@ class AnyType(str):
 any = AnyType("*")
 
 
+class AlwaysEqualProxy(str):
+    def __eq__(self, _):
+        return True
+
+    def __ne__(self, _):
+        return False
+
+
+class AlwaysTupleZero(tuple):
+    def __getitem__(self, _):
+        return AlwaysEqualProxy(super().__getitem__(0))
+
+
+def _slot_sort_key(name):
+    """Order dynamic slots numerically: input_anything, input_anything1, input_anything2..."""
+    suffix = str(name)[len("input_anything"):]
+    return int(suffix) if suffix.isdigit() else 0
+
+
 class AlchemyCryptoEncryptEnd:
+    """The 'EncryptEnd' bridge. You connect each output the sealed region should EXPOSE into
+    this node. Inputs AND outputs are dynamic (mirrors the Encrypt node's input_anything), so
+    N connected outputs -> N Decrypt outputs. Runtime = passthrough of every connected input."""
     def __init__(self):
         pass
 
     @classmethod
     def INPUT_TYPES(s):
-        return {"required": {"value": (any,)}}
+        return {"required": {}, "optional": {"input_anything": (any,)}}
 
     @classmethod
     def VALIDATE_INPUTS(s, input_types):
@@ -115,12 +137,14 @@ class AlchemyCryptoEncryptEnd:
     def IS_CHANGED(cls, **kwargs):
         return float("NaN")
 
-    RETURN_TYPES = (any,)
+    RETURN_TYPES = AlwaysTupleZero(AlwaysEqualProxy("*"))
     FUNCTION = "doit"
     CATEGORY = "AI Alchemy"
 
-    def doit(self, value):
-        return (value,)
+    def doit(self, **kwargs):
+        vals = [kwargs[k] for k in sorted(kwargs, key=_slot_sort_key)
+                if str(k).startswith("input_anything") and kwargs[k] is not None]
+        return tuple(vals) if vals else (None,)
 
 
 def is_link(obj):
@@ -137,19 +161,6 @@ def is_link(obj):
     ):
         return False
     return True
-
-
-class AlwaysEqualProxy(str):
-    def __eq__(self, _):
-        return True
-
-    def __ne__(self, _):
-        return False
-
-
-class AlwaysTupleZero(tuple):
-    def __getitem__(self, _):
-        return AlwaysEqualProxy(super().__getitem__(0))
 
 
 class AlchemyCryptoDecrypt:
@@ -232,11 +243,15 @@ class AlchemyCryptoDecrypt:
                     newInputs[ikey] = inputs[ikey]
             return graph.node(nodeData["class_type"], id, **newInputs)
 
-        node_id, link_idx = decode_crypto_workflow.get_outputs()
-        nodeData = crypto_prompt[node_id]
-        node = get_node_result(nodeData, node_id)
-        value = node.out(link_idx)
-        return {"result": tuple([value]), "expand": graph.finalize()}
+        outputs = decode_crypto_workflow.get_outputs()
+        # normalize: legacy single (node_id, link_idx) vs new [[node_id, link_idx], ...]
+        if outputs and not isinstance(outputs[0], (list, tuple)):
+            outputs = [list(outputs)]
+        results = []
+        for node_id, link_idx in outputs:
+            node = get_node_result(crypto_prompt[node_id], node_id)   # processed_nodes cache is shared
+            results.append(node.out(link_idx))
+        return {"result": tuple(results) if results else (None,), "expand": graph.finalize()}
 
 
 class AlchemyCryptoRandomSeed:
